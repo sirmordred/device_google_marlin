@@ -27,7 +27,7 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define LOG_NIDEBUG 0
+#define LOG_NDEBUG 1
 
 #include <errno.h>
 #include <inttypes.h>
@@ -104,13 +104,9 @@ static pthread_mutex_t s_interaction_lock = PTHREAD_MUTEX_INITIALIZER;
 static struct timespec s_previous_boost_timespec;
 static int s_previous_duration;
 
-static struct hw_module_methods_t power_module_methods = {
-    .open = NULL,
-};
-
 static void power_init(struct power_module *module)
 {
-    ALOGI("QCOM power HAL initing.");
+    ALOGV("QCOM power HAL initing.");
 
     int fd;
     char buf[10] = {0};
@@ -141,7 +137,7 @@ static void process_video_decode_hint(void *metadata)
     }
 
     if (metadata) {
-        ALOGI("Processing video decode hint. Metadata: %s", (char *)metadata);
+        ALOGV("Processing video decode hint. Metadata: %s", (char *)metadata);
     }
 
     /* Initialize encode metadata struct fields. */
@@ -463,6 +459,8 @@ static void power_hint(struct power_module *module, power_hint_t hint,
         case POWER_HINT_VIDEO_DECODE:
             process_video_decode_hint(data);
         break;
+	default:
+	break;
     }
 }
 
@@ -482,7 +480,7 @@ void set_interactive(struct power_module *module, int on)
         return;
     }
 
-    ALOGI("Got set_interactive hint");
+    ALOGV("Got set_interactive hint");
 
     if (get_scaling_governor(governor, sizeof(governor)) == -1) {
         ALOGE("Can't obtain scaling governor.");
@@ -795,6 +793,44 @@ static int get_platform_low_power_stats(struct power_module *module,
 
     return 0;
 }
+
+static int power_open(const hw_module_t* module, const char* name,
+                    hw_device_t** device)
+{
+    ALOGV("%s: enter; name=%s", __FUNCTION__, name);
+    int retval = 0; /* 0 is ok; -1 is error */
+
+    if (strcmp(name, POWER_HARDWARE_MODULE_ID) == 0) {
+        power_module_t *dev = (power_module_t *)calloc(1,
+                sizeof(power_module_t));
+
+        if (dev) {
+            /* Common hw_device_t fields */
+            dev->common.tag = HARDWARE_MODULE_TAG;
+            dev->common.module_api_version = POWER_MODULE_API_VERSION_0_5;
+            dev->common.module_api_version = HARDWARE_HAL_API_VERSION;
+
+            dev->init = power_init;
+            dev->powerHint = power_hint;
+            dev->setInteractive = set_interactive;
+            dev->get_number_of_platform_modes = get_number_of_platform_modes;
+            dev->get_platform_low_power_stats = get_platform_low_power_stats;
+            dev->get_voter_list = get_voter_list;
+
+            *device = (hw_device_t*)dev;
+        } else
+            retval = -ENOMEM;
+    } else {
+        retval = -EINVAL;
+    }
+
+    ALOGV("%s: exit %d", __FUNCTION__, retval);
+    return retval;
+}
+
+static struct hw_module_methods_t power_module_methods = {
+    .open = power_open,
+};
 
 struct power_module HAL_MODULE_INFO_SYM = {
     .common = {

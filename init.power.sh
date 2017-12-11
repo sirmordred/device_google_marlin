@@ -1,4 +1,4 @@
-#!/system/bin/sh
+#!/vendor/bin/sh
 
 ################################################################################
 # helper functions to allow Android init like script
@@ -65,7 +65,6 @@ write /sys/module/cpu_boost/parameters/input_boost_freq "0:1324800 2:1324800"
 write /sys/module/cpu_boost/parameters/input_boost_ms 40
 
 # Setting b.L scheduler parameters
-write /proc/sys/kernel/sched_boost 0
 write /proc/sys/kernel/sched_migration_fixup 1
 write /proc/sys/kernel/sched_upmigrate 95
 write /proc/sys/kernel/sched_downmigrate 90
